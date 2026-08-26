@@ -1,0 +1,63 @@
+POST http://localhost:8080/api/incidents
+Content-Type: application/json
+
+{
+  "title": "TRT Haber yayınında görüntü donması",
+  "description": "Canlı yayın sırasında görüntü yaklaşık 5 saniye dondu.",
+  "priority": "HIGH",
+  "status": "OPEN"
+}
+
+### Incident güncelle
+PUT http://localhost:8080/api/incidents/2
+Content-Type: application/json
+
+{
+  "title": "TRT Haber yayınında görüntü donması",
+  "description": "Sorun inceleniyor ve teknik ekip müdahale ediyor.",
+  "priority": "HIGH",
+  "status": "IN_PROGRESS"
+}
+
+### Incident sil
+DELETE http://localhost:8080/api/incidents/3
+
+### Validation Test
+POST http://localhost:8080/api/incidents
+Content-Type: application/json
+
+{
+  "title": "",
+  "description": "",
+  "priority": "HIGH",
+  "status": "OPEN"
+}
+
+### Tüm incidentları getir
+GET http://localhost:8080/api/incidents
+
+
+### Tüm incidentları getir
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+### Kullanıcı Kayıt
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+"username": "batuhan3",
+"email": "batuhan3@trt.com",
+"password": "123456",
+"role": "OPERATOR"
+}
+
+### Login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "batuhan3",
+  "password": "123456"
+}
+

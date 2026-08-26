@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: trt-postgres
+    environment:
+      POSTGRES_DB: trt_incidents
+      POSTGRES_USER: trt_user
+      POSTGRES_PASSWORD: trt_password
+    volumes:
+      - 20bc503258c361b77de09277d6b146579ffbb04a0027d4432f365805600637fc:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    image: trt-backend:latest
+    container_name: trt-backend
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/trt_incidents
+      SPRING_DATASOURCE_USERNAME: trt_user
+      SPRING_DATASOURCE_PASSWORD: trt_password
+    ports:
+      - "8080:8080"
+
+  frontend:
+    image: trt-frontend:latest
+    container_name: trt-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: trt-nginx
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  20bc503258c361b77de09277d6b146579ffbb04a0027d4432f365805600637fc:
+    external: true

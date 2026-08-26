@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+.next/
+out/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Java / Spring
+target/
+*.class
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS / temp
+*.log
+
+# Archives
+*.zip
