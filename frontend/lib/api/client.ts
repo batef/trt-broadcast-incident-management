@@ -1,7 +1,7 @@
 import { clearToken, getToken } from '@/lib/auth'
 import type { ApiErrorBody } from '@/lib/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api'
 
 export class ApiError extends Error {
   status: number
