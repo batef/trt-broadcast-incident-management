@@ -44,6 +44,9 @@ public class SecurityConfig {
                         // Login
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // SMTP test
+                        .requestMatchers("/api/test/**").permitAll()
+
                         // Swagger
                         .requestMatchers(
                                 "/swagger-ui/**",
@@ -55,8 +58,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/users")
                         .hasRole("ADMIN")
 
+                        // Mesajlaşma kullanıcı listesi → giriş yapmış tüm kullanıcılar
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/users/messaging"
+                        )
+                        .authenticated()
+                        
                         // Kullanıcı sorgulama (olay atama akışı için) → ADMIN/SUPERVISOR
                         .requestMatchers(HttpMethod.GET, "/api/users/*")
+                        .hasAnyRole("ADMIN", "SUPERVISOR")
+
+                        .requestMatchers(HttpMethod.GET, "/api/users")
                         .hasAnyRole("ADMIN", "SUPERVISOR")
 
                         // DELETE → sadece ADMIN
@@ -96,7 +109,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:3000")
+                List.of(
+                        "http://localhost:3000",
+                        "http://localhost:3001"
+                )
         );
 
         configuration.setAllowedMethods(

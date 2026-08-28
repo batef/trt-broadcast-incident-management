@@ -1,23 +1,26 @@
 package com.trt.broadcastincidentmanagement.dto;
 
 import com.trt.broadcastincidentmanagement.enums.Role;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-// Admin'in yeni kullanıcı oluştururken gönderdiği alanlar.
-// Kasıtlı olarak şifre alanı YOK: şifreyi backend üretir.
 @Getter
 @Setter
 public class CreateUserRequest {
 
-    @NotBlank(message = "Username cannot be empty")
-    private String username;
+    @NotBlank(message = "Ad boş bırakılamaz")
+    private String firstName;
 
-    @NotBlank(message = "Email cannot be empty")
+    @NotBlank(message = "Soyad boş bırakılamaz")
+    private String lastName;
+
+    @NotBlank(message = "Email boş bırakılamaz")
+    @Email(message = "Geçerli bir email adresi giriniz")
     private String email;
 
-    @NotNull(message = "Role is required")
+    @NotNull(message = "Rol seçilmelidir")
     private Role role;
 }

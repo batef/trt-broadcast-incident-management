@@ -24,15 +24,18 @@ public class IncidentService {
     private final IncidentRepository incidentRepository;
     private final UserRepository userRepository;
     private final IncidentHistoryRepository incidentHistoryRepository;
+    private final EmailService emailService;
 
     public IncidentService(
             IncidentRepository incidentRepository,
             UserRepository userRepository,
-            IncidentHistoryRepository incidentHistoryRepository) {
+            IncidentHistoryRepository incidentHistoryRepository,
+            EmailService emailService) {
 
         this.incidentRepository = incidentRepository;
         this.userRepository = userRepository;
         this.incidentHistoryRepository = incidentHistoryRepository;
+        this.emailService = emailService;
     }
 
     // Tüm incidentları getir
@@ -52,7 +55,8 @@ public class IncidentService {
     }
 
     // Yeni incident oluştur
-    public IncidentResponse createIncident(IncidentRequest request) {
+    public IncidentResponse createIncident(
+            IncidentRequest request) {
 
         Incident incident = new Incident();
 
@@ -61,128 +65,295 @@ public class IncidentService {
         incident.setPriority(request.getPriority());
         incident.setStatus(request.getStatus());
 
-        User currentUser = (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        User currentUser =
+                (User) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
 
         incident.setCreatedBy(currentUser);
 
-        Incident savedIncident = incidentRepository.save(incident);
+        Incident savedIncident =
+                incidentRepository.save(incident);
 
-        IncidentHistory history = new IncidentHistory();
+        IncidentHistory history =
+                new IncidentHistory();
 
         history.setIncident(savedIncident);
         history.setUser(currentUser);
         history.setAction("CREATED");
         history.setDetails("Incident created");
-        history.setCreatedAt(LocalDateTime.now());
+        history.setCreatedAt(
+                LocalDateTime.now()
+        );
 
         incidentHistoryRepository.save(history);
 
-        return convertToResponse(savedIncident);
+        return convertToResponse(
+                savedIncident
+        );
     }
 
     // Incident güncelle
-    public IncidentResponse updateIncident(Long id, IncidentRequest request) {
+    public IncidentResponse updateIncident(
+            Long id,
+            IncidentRequest request) {
 
-        Incident existingIncident = incidentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Incident not found"));
+        Incident existingIncident =
+                incidentRepository.findById(id)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Incident not found"
+                                )
+                        );
 
-        existingIncident.setTitle(request.getTitle());
-        existingIncident.setDescription(request.getDescription());
-        existingIncident.setPriority(request.getPriority());
-        existingIncident.setStatus(request.getStatus());
+        existingIncident.setTitle(
+                request.getTitle()
+        );
 
-        Incident savedIncident = incidentRepository.save(existingIncident);
+        existingIncident.setDescription(
+                request.getDescription()
+        );
 
-        return convertToResponse(savedIncident);
+        existingIncident.setPriority(
+                request.getPriority()
+        );
+
+        existingIncident.setStatus(
+                request.getStatus()
+        );
+
+        Incident savedIncident =
+                incidentRepository.save(
+                        existingIncident
+                );
+
+        return convertToResponse(
+                savedIncident
+        );
     }
 
     // Incident sil.
-    // IncidentHistory kayıtları incidents tablosuna FK ile bağlı olduğu için
-    // (SQLState 23503), önce o incident'a ait geçmiş kayıtları, ardından
-    // incident'ın kendisi silinir. History salt audit amaçlı olup silinen bir
-    // incident'tan bağımsız bir anlamı olmadığından bu veri kaybı kabul edilebilir.
+    //
+    // IncidentHistory kayıtları incidents tablosuna
+    // FK ile bağlı olduğu için önce history kayıtları,
+    // ardından incident silinir.
     @org.springframework.transaction.annotation.Transactional
     public void deleteIncident(Long id) {
+
         if (!incidentRepository.existsById(id)) {
-            throw new RuntimeException("Incident not found");
+
+            throw new RuntimeException(
+                    "Incident not found"
+            );
         }
-        incidentHistoryRepository.deleteByIncidentId(id);
+
+        incidentHistoryRepository
+                .deleteByIncidentId(id);
+
         incidentRepository.deleteById(id);
     }
 
     // Incident'ı technician'a ata
-    public IncidentResponse assignIncident(Long incidentId, Long userId) {
+    public IncidentResponse assignIncident(
+            Long incidentId,
+            Long userId) {
 
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new RuntimeException("Incident not found"));
+        /*
+         * Incident kontrolü
+         */
+        Incident incident =
+                incidentRepository.findById(incidentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Incident not found"
+                                )
+                        );
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        /*
+         * Kullanıcı kontrolü
+         */
+        User user =
+                userRepository.findById(userId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "User not found"
+                                )
+                        );
 
+        /*
+         * Kullanıcının gerçekten technician
+         * olduğundan emin ol.
+         */
         if (user.getRole() != Role.TECHNICIAN) {
-            throw new RuntimeException("User must be a technician");
+
+            throw new RuntimeException(
+                    "User must be a technician"
+            );
         }
 
+        /*
+         * Aynı teknisyene aynı olayı tekrar
+         * atamayı engelle.
+         */
+        if (incident.getAssignedTo() != null &&
+                incident.getAssignedTo()
+                        .getId()
+                        .equals(userId)) {
+
+            throw new RuntimeException(
+                    "Bu olay zaten bu teknisyene atanmış."
+            );
+        }
+
+        /*
+         * Olayı teknisyene ata.
+         */
         incident.setAssignedTo(user);
 
-        Incident savedIncident = incidentRepository.save(incident);
+        Incident savedIncident =
+                incidentRepository.save(incident);
 
-        User currentUser = (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        /*
+         * Atamayı yapan kullanıcı.
+         */
+        User currentUser =
+                (User) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
 
-        IncidentHistory history = new IncidentHistory();
+        /*
+         * History kaydı oluştur.
+         */
+        IncidentHistory history =
+                new IncidentHistory();
 
-        history.setIncident(savedIncident);
-        history.setUser(currentUser);
-        history.setAction("ASSIGNED");
-        history.setDetails(
-                "Incident assigned to " + user.getUsername()
+        history.setIncident(
+                savedIncident
         );
-        history.setCreatedAt(LocalDateTime.now());
 
-        incidentHistoryRepository.save(history);
+        history.setUser(
+                currentUser
+        );
 
-        return convertToResponse(savedIncident);
+        history.setAction(
+                "ASSIGNED"
+        );
+
+        history.setDetails(
+                "Incident assigned to "
+                        + user.getUsername()
+        );
+
+        history.setCreatedAt(
+                LocalDateTime.now()
+        );
+
+        incidentHistoryRepository.save(
+                history
+        );
+
+        /*
+         * ==========================================
+         * TEKNİSYENE HTML MAIL GÖNDER
+         * ==========================================
+         *
+         * Olay başarıyla atandıktan sonra
+         * teknisyenin kayıtlı e-posta adresine
+         * olay detaylarını içeren HTML mail
+         * gönderiyoruz.
+         */
+        try {
+
+            emailService.sendIncidentAssignedEmail(
+                    user.getEmail(),
+                    user.getUsername(),
+                    savedIncident
+            );
+
+        } catch (Exception e) {
+
+            /*
+             * Mail gönderilemese bile olay
+             * atamasını geri almıyoruz.
+             *
+             * DB:
+             *   Atama       ✓
+             *   History     ✓
+             *   Mail        ✗
+             *
+             * Böylece mail problemi yüzünden
+             * olay ataması kaybolmaz.
+             */
+            System.err.println(
+                    "Olay atama maili gönderilemedi: "
+                            + e.getMessage()
+            );
+        }
+
+        return convertToResponse(
+                savedIncident
+        );
     }
 
+    // Technician'ın kendisine atanmış incidentları
     public List<IncidentResponse> getMyAssignedIncidents() {
 
-        User currentUser = (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        User currentUser =
+                (User) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
 
-        return incidentRepository.findByAssignedToId(currentUser.getId())
+        return incidentRepository
+                .findByAssignedToId(
+                        currentUser.getId()
+                )
                 .stream()
                 .map(this::convertToResponse)
                 .toList();
     }
 
-    public IncidentResponse updateIncidentStatus(Long incidentId, IncidentStatus newStatus) {
+    // Incident status güncelle
+    public IncidentResponse updateIncidentStatus(
+            Long incidentId,
+            IncidentStatus newStatus) {
 
-        Incident incident = incidentRepository.findById(incidentId)
-                .orElseThrow(() -> new RuntimeException("Incident not found"));
+        Incident incident =
+                incidentRepository.findById(incidentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Incident not found"
+                                )
+                        );
 
-        User currentUser = (User) SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getPrincipal();
+        User currentUser =
+                (User) SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
 
+        /*
+         * Sadece olay kendisine atanmış technician
+         * tarafından status değiştirebilir.
+         */
         if (incident.getAssignedTo() == null ||
-                !incident.getAssignedTo().getId().equals(currentUser.getId())) {
+                !incident.getAssignedTo()
+                        .getId()
+                        .equals(currentUser.getId())) {
 
             throw new RuntimeException(
                     "You can only update incidents assigned to you"
             );
         }
 
-        IncidentStatus oldStatus = incident.getStatus();
+        IncidentStatus oldStatus =
+                incident.getStatus();
 
+        /*
+         * OPEN -> IN_PROGRESS
+         */
         if (oldStatus == IncidentStatus.OPEN &&
                 newStatus != IncidentStatus.IN_PROGRESS) {
 
@@ -191,6 +362,9 @@ public class IncidentService {
             );
         }
 
+        /*
+         * IN_PROGRESS -> RESOLVED
+         */
         if (oldStatus == IncidentStatus.IN_PROGRESS &&
                 newStatus != IncidentStatus.RESOLVED) {
 
@@ -199,6 +373,9 @@ public class IncidentService {
             );
         }
 
+        /*
+         * RESOLVED tekrar açılamaz.
+         */
         if (oldStatus == IncidentStatus.RESOLVED) {
 
             throw new RuntimeException(
@@ -206,49 +383,94 @@ public class IncidentService {
             );
         }
 
-        incident.setStatus(newStatus);
-
-        Incident savedIncident = incidentRepository.save(incident);
-
-        IncidentHistory history = new IncidentHistory();
-
-        history.setIncident(savedIncident);
-        history.setUser(currentUser);
-        history.setAction("STATUS_CHANGED");
-        history.setDetails(
-                "Status changed from " + oldStatus + " to " + newStatus
+        incident.setStatus(
+                newStatus
         );
-        history.setCreatedAt(LocalDateTime.now());
 
-        incidentHistoryRepository.save(history);
+        Incident savedIncident =
+                incidentRepository.save(
+                        incident
+                );
 
-        return convertToResponse(savedIncident);
+        /*
+         * Status history
+         */
+        IncidentHistory history =
+                new IncidentHistory();
+
+        history.setIncident(
+                savedIncident
+        );
+
+        history.setUser(
+                currentUser
+        );
+
+        history.setAction(
+                "STATUS_CHANGED"
+        );
+
+        history.setDetails(
+                "Status changed from "
+                        + oldStatus
+                        + " to "
+                        + newStatus
+        );
+
+        history.setCreatedAt(
+                LocalDateTime.now()
+        );
+
+        incidentHistoryRepository.save(
+                history
+        );
+
+        return convertToResponse(
+                savedIncident
+        );
     }
 
-    public List<IncidentHistoryResponse> getIncidentHistory(Long incidentId) {
+    // Incident history
+    public List<IncidentHistoryResponse> getIncidentHistory(
+            Long incidentId) {
 
         return incidentHistoryRepository
-                .findByIncidentIdOrderByCreatedAtDesc(incidentId)
+                .findByIncidentIdOrderByCreatedAtDesc(
+                        incidentId
+                )
                 .stream()
-                .map(history -> new IncidentHistoryResponse(
-                        history.getId(),
-                        history.getAction(),
-                        history.getDetails(),
-                        history.getCreatedAt(),
-                        history.getUser().getUsername()
-                ))
+                .map(history ->
+                        new IncidentHistoryResponse(
+                                history.getId(),
+                                history.getAction(),
+                                history.getDetails(),
+                                history.getCreatedAt(),
+                                history.getUser()
+                                        .getUsername()
+                        )
+                )
                 .toList();
     }
 
-    private IncidentResponse convertToResponse(Incident incident) {
+    /*
+     * Incident -> IncidentResponse
+     */
+    private IncidentResponse convertToResponse(
+            Incident incident) {
 
-        String createdByUsername = incident.getCreatedBy() != null
-                ? incident.getCreatedBy().getUsername()
-                : null;
+        String createdByUsername =
+                incident.getCreatedBy() != null
+                        ? incident
+                        .getCreatedBy()
+                        .getUsername()
+                        : null;
 
-        String assignedToUsername = incident.getAssignedTo() != null
-                ? incident.getAssignedTo().getUsername()
-                : null;
+        String assignedToUsername =
+                incident.getAssignedTo() != null
+                        ? incident
+                        .getAssignedTo()
+                        .getUsername()
+                        : null;
 
         return new IncidentResponse(
                 incident.getId(),

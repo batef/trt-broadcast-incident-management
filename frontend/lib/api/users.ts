@@ -1,9 +1,12 @@
 import { apiRequest } from '@/lib/api/client'
-import type { CreateUserRequest, CreateUserResponse, UserSummaryResponse } from '@/lib/types'
+import type {
+  CreateUserRequest,
+  CreateUserResponse,
+  UserDetailsResponse,
+  UserSummaryResponse,
+} from '@/lib/types'
 
-// POST /api/users — sadece ADMIN çağırabilir (backend SecurityConfig'de
-// zorunlu kılınıyor). Şifre alanı yok; backend geçici şifreyi üretir ve
-// yalnızca bu cevapta bir kez döner.
+// POST /api/users
 export function createUser(request: CreateUserRequest) {
   return apiRequest<CreateUserResponse>('/users', {
     method: 'POST',
@@ -11,9 +14,23 @@ export function createUser(request: CreateUserRequest) {
   })
 }
 
-// GET /api/users/{id} — olay atama ekranında girilen ID'nin gerçek bir
-// kullanıcıya karşılık gelip gelmediğini doğrulamak için. Sadece
-// ADMIN/SUPERVISOR çağırabilir.
+// GET /api/users
+export function getUsers() {
+  return apiRequest<UserSummaryResponse[]>('/users')
+}
+
+// GET /api/users/{id}
 export function getUserSummary(id: number) {
   return apiRequest<UserSummaryResponse>(`/users/${id}`)
+}
+
+// GET /api/users/{id}/details
+export function getUserDetails(id: number) {
+  return apiRequest<UserDetailsResponse>(`/users/${id}/details`)
+}
+
+// GET /api/users/technicians
+// Olay atama ekranında kullanılacak teknisyen listesi.
+export function getTechnicians() {
+  return apiRequest<UserSummaryResponse[]>('/users/technicians')
 }

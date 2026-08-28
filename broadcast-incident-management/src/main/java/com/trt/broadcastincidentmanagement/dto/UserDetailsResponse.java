@@ -4,20 +4,17 @@ import com.trt.broadcastincidentmanagement.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-// Kullanıcı özeti.
-// Teknisyen atama ekranında müsaitlik bilgisini de taşır.
+import java.util.List;
+
 @Getter
 @AllArgsConstructor
-public class UserSummaryResponse {
+public class UserDetailsResponse {
 
     private Long id;
     private String username;
     private String email;
     private Role role;
 
-    // Teknisyenin aktif bir olaya atanıp atanmadığı
-    private boolean available;
-
-    // Açık / devam eden olay sayısı
-    private int activeIncidentCount;
+    private List<IncidentResponse> createdIncidents;
+    private List<IncidentResponse> assignedIncidents;
 }

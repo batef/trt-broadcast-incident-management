@@ -1,5 +1,9 @@
-// Bu dosya backend'deki gerçek enum ve DTO'larla birebir eşleşir.
+// Backend'deki gerçek enum ve DTO'larla birebir eşleşir.
 // Kaynak: com.trt.broadcastincidentmanagement.{enums,dto}
+
+// --------------------------------------------------
+// INCIDENT
+// --------------------------------------------------
 
 export type IncidentStatus =
   | 'OPEN'
@@ -8,15 +12,26 @@ export type IncidentStatus =
   | 'RESOLVED'
   | 'CLOSED'
 
-export type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type Priority =
+  | 'LOW'
+  | 'MEDIUM'
+  | 'HIGH'
+  | 'CRITICAL'
 
-// Not: backend'de OPERATOR rolü de var ama şu an hiçbir endpoint
-// rol bilgisini frontend'e döndürmüyor (JWT sadece username taşıyor,
-// GET /api/users yok). Bu tip yalnızca "Kullanıcılar" sayfasındaki
-// demo veri ve yeni kullanıcı formu için kullanılıyor.
-export type Role = 'ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'OPERATOR'
+// --------------------------------------------------
+// ROLE
+// --------------------------------------------------
 
-// IncidentRequest — POST/PUT /api/incidents body'si
+export type Role =
+  | 'ADMIN'
+  | 'SUPERVISOR'
+  | 'TECHNICIAN'
+  | 'OPERATOR'
+
+// --------------------------------------------------
+// INCIDENT REQUEST / RESPONSE
+// --------------------------------------------------
+
 export interface IncidentRequest {
   title: string
   description: string
@@ -24,7 +39,6 @@ export interface IncidentRequest {
   status: IncidentStatus
 }
 
-// IncidentResponse — backend'in döndürdüğü gerçek alanlar
 export interface IncidentResponse {
   id: number
   title: string
@@ -36,7 +50,10 @@ export interface IncidentResponse {
   assignedToUsername: string | null
 }
 
-// IncidentHistoryResponse
+// --------------------------------------------------
+// INCIDENT HISTORY
+// --------------------------------------------------
+
 export interface IncidentHistoryResponse {
   id: number
   action: string
@@ -44,6 +61,10 @@ export interface IncidentHistoryResponse {
   createdAt: string
   username: string
 }
+
+// --------------------------------------------------
+// AUTH
+// --------------------------------------------------
 
 export interface LoginRequest {
   username: string
@@ -61,15 +82,17 @@ export interface ChangePasswordRequest {
   confirmPassword: string
 }
 
-// POST /api/users — gerçek backend isteği (ADMIN-only). Şifre alanı YOK;
-// backend geçici şifreyi kendisi üretir.
+// --------------------------------------------------
+// USER CREATE
+// --------------------------------------------------
+
 export interface CreateUserRequest {
-  username: string
+  firstName: string
+  lastName: string
   email: string
   role: Role
 }
 
-// Geçici şifre yalnızca bu cevapta, bir kez döner.
 export interface CreateUserResponse {
   id: number
   username: string
@@ -78,18 +101,70 @@ export interface CreateUserResponse {
   temporaryPassword: string
 }
 
-// GET /api/users/{id} — olay atama akışında kullanıcı doğrulamak için
+// --------------------------------------------------
+// USER SUMMARY
+// --------------------------------------------------
+
 export interface UserSummaryResponse {
   id: number
   username: string
   email: string
   role: Role
+  available: boolean
+  activeIncidentCount: number
 }
 
-// Backend'in RuntimeException handler'ı { error: string } döndürüyor
+// --------------------------------------------------
+// USER DETAILS
+// --------------------------------------------------
+
+export interface UserDetailsResponse {
+  id: number
+  username: string
+  email: string
+  role: Role
+  createdIncidents: IncidentResponse[]
+  assignedIncidents: IncidentResponse[]
+}
+
+// --------------------------------------------------
+// MESSAGING
+// --------------------------------------------------
+
+export interface ConversationResponse {
+  id: number
+  createdAt: string
+  participants: UserSummaryResponse[]
+  lastMessage: string | null
+  lastMessageAt: string | null
+}
+
+export interface MessageResponse {
+  id: number
+  conversationId: number
+  senderId: number
+  senderUsername: string
+  content: string
+  createdAt: string
+  read: boolean
+}
+
+export interface SendMessageRequest {
+  conversationId: number
+  content: string
+}
+
+// --------------------------------------------------
+// API ERROR
+// --------------------------------------------------
+
 export interface ApiErrorBody {
   error?: string
 }
+
+// --------------------------------------------------
+// LABELS
+// --------------------------------------------------
 
 export const STATUS_LABELS: Record<IncidentStatus, string> = {
   OPEN: 'Açık',
@@ -113,22 +188,40 @@ export const ROLE_LABELS: Record<Role, string> = {
   OPERATOR: 'Operatör',
 }
 
-// Durum akışı backend'de katı kurallara bağlı (IncidentService.updateIncidentStatus):
-// OPEN -> yalnızca IN_PROGRESS
-// IN_PROGRESS -> yalnızca RESOLVED
-// RESOLVED -> asla (kapalı uç)
-// INVESTIGATING / CLOSED -> backend'de açık bir kısıtlama yok
-export function nextAllowedStatuses(current: IncidentStatus): IncidentStatus[] {
+// --------------------------------------------------
+// INCIDENT STATUS FLOW
+// --------------------------------------------------
+
+// Backend'deki IncidentService.updateIncidentStatus
+// kurallarına göre izin verilen sonraki durumlar.
+//
+// OPEN -> IN_PROGRESS
+// IN_PROGRESS -> RESOLVED
+// RESOLVED -> hiçbir durum
+// INVESTIGATING / CLOSED -> backend'de açık kısıtlama yok
+
+export function nextAllowedStatuses(
+  current: IncidentStatus,
+): IncidentStatus[] {
   switch (current) {
     case 'OPEN':
       return ['IN_PROGRESS']
+
     case 'IN_PROGRESS':
       return ['RESOLVED']
+
     case 'RESOLVED':
       return []
+
     default:
-      return ['OPEN', 'INVESTIGATING', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].filter(
-        (s) => s !== current,
+      return [
+        'OPEN',
+        'INVESTIGATING',
+        'IN_PROGRESS',
+        'RESOLVED',
+        'CLOSED',
+      ].filter(
+        (status) => status !== current,
       ) as IncidentStatus[]
   }
 }

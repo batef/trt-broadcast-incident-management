@@ -8,4 +8,6 @@ import java.util.List;
 public interface IncidentRepository extends JpaRepository<Incident, Long> {
 
     List<Incident> findByAssignedToId(Long userId);
+
+    List<Incident> findByCreatedById(Long userId);
 }
