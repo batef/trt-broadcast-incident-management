@@ -154,10 +154,6 @@ Conversation
 
 ## 🖥️ Frontend
 
----
-
-## 🖥️ Frontend
-
 Frontend tarafı Next.js, React ve TypeScript kullanılarak geliştirilmiştir.
 
 Arayüz içerisinde:
